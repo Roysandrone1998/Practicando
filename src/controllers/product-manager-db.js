@@ -36,13 +36,38 @@ class ProductManager {
         }
     }
 
-    async getProducts() {
+    async getProducts({ limit = 10, page = 1, sort = null, query = {} }) {
         try {
-            const productos = await ProductModel.find(); 
-            return productos;
+            let skip = (page - 1) * limit;
+            let sortQuery = sort ? { price: sort === 'asc' ? 1 : -1 } : {};
+
+            const productos = await ProductModel.find(query)
+                .limit(limit)
+                .skip(skip)
+                .sort(sortQuery);
+
+            const totalProducts = await ProductModel.countDocuments(query);
+            const totalPages = Math.ceil(totalProducts / limit);
+            const hasNextPage = page < totalPages;
+            const hasPrevPage = page > 1;
+            const nextPage = hasNextPage ? page + 1 : null;
+            const prevPage = hasPrevPage ? page - 1 : null;
+
+            return {
+                status: 'success',
+                payload: productos,
+                totalPages,
+                prevPage,
+                nextPage,
+                page,
+                hasPrevPage,
+                hasNextPage,
+                prevLink: hasPrevPage ? `/api/products?limit=${limit}&page=${prevPage}&sort=${sort}` : null,
+                nextLink: hasNextPage ? `/api/products?limit=${limit}&page=${nextPage}&sort=${sort}` : null
+            };
         } catch (error) {
-            console.log("Error al recuperar los productos", error); 
-            throw error; 
+            console.error("Error al obtener productos", error);
+            throw error;
         }
     }
 
